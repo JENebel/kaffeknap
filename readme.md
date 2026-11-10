@@ -27,6 +27,21 @@ cargo run --release
 
 The VAPID key pair is generated on first start and stored in the `app_settings` table. If you delete it, every device has to re-enable notifications.
 
+## Deploying (Debian/Ubuntu, e.g. a Proxmox container)
+
+The files are in `deploy/`. Database migrations are compiled into the binary.
+
+```sh
+apt update && apt install -y git curl build-essential pkg-config libssl-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . ~/.cargo/env
+git clone <your-repo-url> /root/kaffeknap
+/root/kaffeknap/deploy/update.sh   # builds, installs to /opt/kaffeknap and starts the systemd service
+```
+
+Edit `/etc/systemd/system/kaffeknap.service` (at least `KAFFE_VAPID_SUBJECT`), then run `systemctl daemon-reload && systemctl restart kaffeknap`. To update later, run `deploy/update.sh` again. Data is stored in `/var/lib/kaffeknap/`.
+
+For HTTPS, which push notifications need: `apt install caddy`, copy `deploy/Caddyfile` to `/etc/caddy/Caddyfile` with your domain, and run `systemctl reload caddy`.
+
 ## How it works
 
 - **Press:** you're marked ready for `press_ttl_minutes` (default 30). Pressing again extends that time. "Not ready anymore" retracts it.
