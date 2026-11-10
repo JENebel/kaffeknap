@@ -20,7 +20,6 @@ cargo run --release
 | `KAFFE_DB`             | `kaffeknap.db`             | SQLite file (created if missing)                     |
 | `KAFFE_STATIC`         | `static`                   | Frontend directory                                   |
 | `KAFFE_SECURE_COOKIES` | `false`                    | Set `true` when served over HTTPS                    |
-| `KAFFE_VAPID_SUBJECT`  | `mailto:admin@example.com` | Contact for push services. Set it to a real address. |
 | `RUST_LOG`             | `info`                     | Log filter                                           |
 
 **Push notifications require HTTPS** (`localhost` is exempt). In production, put the app behind a TLS reverse proxy (Caddy, nginx and so on) and set `KAFFE_SECURE_COOKIES=true`. The proxy must not buffer `/api/stream`. On iPhone/iPad, push only works after "Add to Home Screen".
@@ -29,18 +28,24 @@ The VAPID key pair is generated on first start and stored in the `app_settings` 
 
 ## Deploying (Debian/Ubuntu, e.g. a Proxmox container)
 
-The files are in `deploy/`. Database migrations are compiled into the binary.
+Database migrations are compiled into the binary. In the container, as root:
 
 ```sh
 apt update && apt install -y git curl build-essential pkg-config libssl-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . ~/.cargo/env
-git clone <your-repo-url> /root/kaffeknap
-/root/kaffeknap/deploy/update.sh   # builds, installs to /opt/kaffeknap and starts the systemd service
+git clone https://github.com/JENebel/kaffeknap.git /root/kaffeknap
+/root/kaffeknap/deploy/update.sh   # builds, installs to /opt/kaffeknap, starts the service on :8080
 ```
 
-Edit `/etc/systemd/system/kaffeknap.service` (at least `KAFFE_VAPID_SUBJECT`), then run `systemctl daemon-reload && systemctl restart kaffeknap`. To update later, run `deploy/update.sh` again. Data is stored in `/var/lib/kaffeknap/`.
+To update later, run `deploy/update.sh` again. Data is stored in `/var/lib/kaffeknap/`.
 
-For HTTPS, which push notifications need: `apt install caddy`, copy `deploy/Caddyfile` to `/etc/caddy/Caddyfile` with your domain, and run `systemctl reload caddy`.
+Point your Caddy at the container:
+
+```
+kaffe.example.com {
+	reverse_proxy <container-ip>:8080
+}
+```
 
 ## How it works
 

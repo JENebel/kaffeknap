@@ -77,7 +77,6 @@ async fn main() -> anyhow::Result<()> {
     let db_path = env_or("KAFFE_DB", "kaffeknap.db");
     let static_dir = PathBuf::from(env_or("KAFFE_STATIC", "static"));
     let secure_cookies = matches!(env_or("KAFFE_SECURE_COOKIES", "false").as_str(), "1" | "true" | "yes");
-    let vapid_subject = env_or("KAFFE_VAPID_SUBJECT", "mailto:admin@example.com");
 
     let opts = SqliteConnectOptions::from_str(&format!("sqlite://{db_path}"))?
         .create_if_missing(true)
@@ -87,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
     let db = SqlitePoolOptions::new().max_connections(8).connect_with(opts).await?;
     sqlx::migrate!("./migrations").run(&db).await?;
 
-    let push = Arc::new(push::Push::init(&db, vapid_subject).await?);
+    let push = Arc::new(push::Push::init(&db, VAPID_SUBJECT.to_string()).await?);
     let (changes, _) = broadcast::channel(256);
 
     let state = AppState {
@@ -186,6 +185,9 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("stopped");
     Ok(())
 }
+
+/// Contact sent to push services (Google/Mozilla/Apple) with every push.
+const VAPID_SUBJECT: &str = "https://kaffe.joachimen.dk";
 
 /// How long to wait for in-flight requests after a shutdown signal.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
