@@ -1,0 +1,26 @@
+[package]
+name = "kaffeknap"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+argon2 = "0.5"
+axum = "0.8"
+axum-extra = { version = "0.12.6", features = ["cookie"] }
+base64 = "0.22"
+futures = "0.3.34"
+p256 = "0.13"
+rand = "0.8"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
+time = "0.3"
+tokio = { version = "1.54.1", features = ["full"] }
+tokio-stream = "0.1.19"
+tokio-util = "0.7"
+tower-http = { version = "0.7.1", features = ["fs", "trace", "set-header"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+web-push = { version = "0.11.0", default-features = false, features = ["hyper-client"] }

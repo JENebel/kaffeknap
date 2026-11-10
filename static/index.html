@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#d32f2f">
+  <title>Kaffeknap</title>
+  <link rel="icon" id="favicon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">☕ <span>Kaffeknap</span></div>
+    <select id="group-select" class="group-select hidden" aria-label="Active group"></select>
+    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme" title="Theme"></button>
+  </header>
+
+  <main id="app">
+    <!-- Auth -->
+    <section id="view-auth" class="view hidden">
+      <div class="card narrow">
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab active" data-auth-tab="login">Log in</button>
+          <button type="button" class="tab" data-auth-tab="signup">Sign up</button>
+        </div>
+        <form id="auth-form" class="stack" autocomplete="on">
+          <p id="auth-invite-note" class="muted hidden"></p>
+          <label>Initials
+            <input name="initials" required minlength="2" maxlength="6" autocomplete="username"
+                   autocapitalize="characters" spellcheck="false" placeholder="e.g. JOEN">
+          </label>
+          <label>Password
+            <input name="password" type="password"
+                   autocomplete="current-password">
+          </label>
+          <label class="signup-only hidden">Repeat password
+            <input name="password2" type="password" autocomplete="new-password">
+          </label>
+          <p id="auth-error" class="error hidden" role="alert"></p>
+          <button type="submit" class="btn primary" id="auth-submit">Log in</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- No group yet -->
+    <section id="view-nogroup" class="view hidden">
+      <div class="card narrow stack">
+        <h2>Welcome, <span class="me-initials"></span>!</h2>
+        <p class="muted">You're not in a coffee group yet. Create one, or paste an invite link or code.</p>
+        <div id="pending-list"></div>
+        <form id="create-group-form" class="row">
+          <input name="name" required maxlength="60" placeholder="Group name, e.g. Team Kaffe">
+          <button class="btn primary" type="submit">Create</button>
+        </form>
+        <form class="row join-code-form">
+          <input name="code" required placeholder="Invite link or code">
+          <button class="btn" type="submit">Join</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Join via invite link -->
+    <section id="view-join" class="view hidden">
+      <div class="card narrow stack" id="join-card"></div>
+    </section>
+
+    <!-- Main: the button -->
+    <section id="view-main" class="view hidden">
+      <nav class="tabs main-tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="button">Coffee</button>
+        <button type="button" class="tab" data-tab="history">History</button>
+        <button type="button" class="tab" data-tab="group">Group <span id="req-badge" class="badge hidden"></span></button>
+        <button type="button" class="tab" data-tab="me">Me</button>
+      </nav>
+
+      <div id="tab-button" class="tab-panel">
+        <div class="button-wrap">
+          <svg class="ring" viewBox="0 0 220 220" aria-hidden="true">
+            <circle class="ring-bg" cx="110" cy="110" r="102"></circle>
+            <circle class="ring-fg" id="ring-fg" cx="110" cy="110" r="102"></circle>
+          </svg>
+          <button id="big-button" class="big-button" type="button">
+            <span class="big-label" id="big-label">Coffee?</span>
+            <span class="big-sub" id="big-sub"></span>
+          </button>
+        </div>
+        <p class="status-line" id="status-line" aria-live="polite"></p>
+        <div class="actions" id="actions"></div>
+        <div id="live-card" class="card live hidden"></div>
+        <div class="card" id="ready-card">
+          <h3>Ready <span class="muted" id="ready-count"></span></h3>
+          <ul class="chips" id="ready-list"></ul>
+          <p class="muted small" id="ready-empty">Nobody yet. Be the first!</p>
+        </div>
+      </div>
+
+      <div id="tab-history" class="tab-panel hidden">
+        <div class="card">
+          <h3>Coffee breaks</h3>
+          <ul class="history" id="history-list"></ul>
+          <p class="muted small hidden" id="history-empty">No completed coffee breaks yet.</p>
+          <button class="btn hidden" type="button" id="history-more">Load more</button>
+        </div>
+      </div>
+
+      <div id="tab-group" class="tab-panel hidden">
+        <div class="card stack">
+          <h3>Invite</h3>
+          <p class="muted small" id="invite-note"></p>
+          <div class="row">
+            <input id="invite-link" readonly aria-label="Invite link">
+            <button class="btn" type="button" id="copy-invite">Copy</button>
+          </div>
+          <button class="btn subtle owner-only hidden" type="button" id="regen-invite">Create new link (old one stops working)</button>
+        </div>
+
+        <div class="card stack owner-only hidden" id="requests-card">
+          <h3>Join requests</h3>
+          <ul class="list" id="requests-list"></ul>
+          <p class="muted small" id="requests-empty">No pending requests.</p>
+        </div>
+
+        <div class="card stack owner-only hidden">
+          <h3>Settings</h3>
+          <form id="group-settings" class="stack">
+            <label>Group name <input name="name" required maxlength="60"></label>
+            <label>People needed for a break <input name="min_ready" type="number" min="1" max="100" required></label>
+            <label>A press is valid for (minutes) <input name="press_ttl_minutes" type="number" min="1" max="720" required></label>
+            <label>A break stays live for (minutes) <input name="event_ttl_minutes" type="number" min="1" max="720" required></label>
+            <label class="check"><input name="is_open" type="checkbox"> Anyone with the link can join (otherwise you approve requests)</label>
+            <p class="error hidden" id="settings-error" role="alert"></p>
+            <button class="btn primary" type="submit">Save settings</button>
+          </form>
+        </div>
+
+        <div class="card stack member-only-settings">
+          <h3>Settings</h3>
+          <dl class="kv" id="settings-readonly"></dl>
+        </div>
+
+        <div class="card stack">
+          <h3>Members <span class="muted" id="member-count"></span></h3>
+          <ul class="list" id="members-list"></ul>
+        </div>
+
+        <div class="card stack">
+          <h3>Groups</h3>
+          <ul class="list" id="groups-list"></ul>
+          <form id="create-group-form-2" class="row">
+            <input name="name" required maxlength="60" placeholder="New group name">
+            <button class="btn" type="submit">Create</button>
+          </form>
+          <form class="row join-code-form">
+            <input name="code" required placeholder="Invite link or code">
+            <button class="btn" type="submit">Join</button>
+          </form>
+        </div>
+
+        <div class="card stack danger-zone">
+          <button class="btn danger not-owner hidden" type="button" id="leave-group">Leave this group</button>
+          <button class="btn danger owner-only hidden" type="button" id="delete-group">Delete this group</button>
+        </div>
+      </div>
+
+      <div id="tab-me" class="tab-panel hidden">
+        <div class="card stack">
+          <h3>Notifications</h3>
+          <p class="muted small" id="push-status"></p>
+          <div class="row wrap">
+            <button class="btn primary" type="button" id="push-enable">Enable on this device</button>
+            <button class="btn hidden" type="button" id="push-disable">Disable on this device</button>
+            <button class="btn subtle hidden" type="button" id="push-test">Send test</button>
+          </div>
+          <h4>Notify me in <span class="group-name"></span> when…</h4>
+          <form id="notify-form" class="stack">
+            <label class="check"><input type="checkbox" name="notify_event_mine"> a coffee break I'm ready for starts</label>
+            <label class="check"><input type="checkbox" name="notify_event_any"> any coffee break starts (even if I'm not ready)</label>
+            <label class="check"><input type="checkbox" name="notify_press"> someone presses the button</label>
+          </form>
+        </div>
+
+        <div class="card stack">
+          <h3>Appearance</h3>
+          <div class="segmented" id="theme-seg">
+            <button type="button" data-theme-choice="system">System</button>
+            <button type="button" data-theme-choice="light">Light</button>
+            <button type="button" data-theme-choice="dark">Dark</button>
+          </div>
+        </div>
+
+        <div class="card stack">
+          <h3>Account · <span class="me-initials"></span></h3>
+          <form id="password-form" class="stack">
+            <input type="text" name="username" autocomplete="username" class="hidden" tabindex="-1" aria-hidden="true">
+            <label>Current password <input name="current_password" type="password" autocomplete="current-password"></label>
+            <label>New password <input name="new_password" type="password" autocomplete="new-password"></label>
+            <label>Repeat new password <input name="new_password2" type="password" autocomplete="new-password"></label>
+            <p class="error hidden" id="password-error" role="alert"></p>
+            <button class="btn" type="submit">Change password</button>
+          </form>
+          <p class="muted small">Changing your password logs you out on all other devices.</p>
+          <button class="btn danger" type="button" id="logout">Log out</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+</body>
+</html>
